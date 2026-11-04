@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090914">
+<title>VOICE MOD V2</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #090914;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  text-align: center;
+  padding: 28px 15px;
+  background: linear-gradient(135deg,#26104c,#101c35);
+  border-bottom: 2px solid #933cff;
+}
+
+.logo {
+  font-size: 30px;
+  font-weight: 900;
+  color: #bd8aff;
+}
+
+header p {
+  color: #aaa;
+  font-size: 12px;
+}
+
+main {
+  max-width: 600px;
+  margin: auto;
+  padding: 18px;
+}
+
+.card {
+  background: #171729;
+  border: 1px solid #383052;
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 17px;
+}
+
+h2 {
+  color: #bd8aff;
+  font-size: 19px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin: 6px 0;
+  border: 0;
+  border-radius: 12px;
+  background: #762cff;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+button:disabled {
+  opacity: .5;
+}
+
+.effects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.effects button {
+  background: #29233f;
+  border: 1px solid #6540a5;
+}
+
+.effects button.active {
+  background: #762cff;
+}
+
+.status {
+  text-align: center;
+  color: #b99aff;
+  padding: 12px;
+}
+
+footer {
+  text-align: center;
+  color: #777;
+  padding: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">🎙 VOICE MOD</div>
+  <p>REAL TIME VOICE CHANGER</p>
+</header>
+
+<main>
+
+<section class="card">
+  <h2>🎤 Studio vocal</h2>
+  <p>Autorise le microphone pour commencer.</p>
+
+  <button id="start">🎙 ACTIVER MON MICRO</button>
+  <button id="stop" disabled>⏹ DÉSACTIVER MON MICRO</button>
+
+  <div class="status" id="status">
+    Micro désactivé
+  </div>
+</section>
+
+<section class="card">
+  <h2>👾 Mes effets vocaux</h2>
+
+  <div class="effects">
+    <button class="active" data-effect="normal">🎙 Normal</button>
+    <button data-effect="robot">🤖 Robot</button>
+    <button data-effect="deep">👹 Grave</button>
+    <button data-effect="high">🐿 Aiguë</button>
+    <button data-effect="alien">👽 Alien</button>
+    <button data-effect="radio">📻 Radio</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2>🔊 Soundboard</h2>
+
+  <button onclick="playSound(440)">🔔 Son 1</button>
+  <button onclick="playSound(660)">⚡ Son 2</button>
+  <button onclick="playSound(880)">🚀 Son 3</button>
+  <button onclick="playSound(220)">💥 Son 4</button>
+</section>
+
+<section class="card">
+  <h2>⚙️ Réglages</h2>
+
+  <label>Volume de sortie</label>
+  <input id="volume" type="range"
+  min="0" max="1" step=".05" value=".8"
+  style="width:100%">
+</section>
+
+</main>
+
+<footer>VOICE MOD V2 · 2026</footer>
+
+<script>
+let context = null;
+let stream = null;
+let source = null;
+let filter = null;
+let gain = null;
+
+let currentEffect = "normal";
+
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const status = document.getElementById("status");
+
+async function startMic() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+
+    context = new AudioContext();
+    await context.resume();
+
+    source = context.createMediaStreamSource(stream);
+
+    filter = context.createBiquadFilter();
+    gain = context.createGain();
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+
+    updateEffect();
+
+  } catch (error) {
+    status.textContent =
+      "Micro inaccessible. Vérifie les autorisations.";
+  }
+}
+
+function stopMic() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
+
+  if (context) {
+    context.close();
+  }
+
+  stream = null;
+  context = null;
+  source = null;
+  filter = null;
+  gain = null;
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+
+  status.textContent = "Micro désactivé";
+}
+
+function updateEffect() {
+  if (!filter || !gain) return;
+
+  filter.type = "allpass";
+  filter.frequency.value = 3500;
+  filter.Q.value = 1;
+
+  if (currentEffect === "robot") {
+    filter.type = "bandpass";
+    filter.frequency.value = 1000;
+    filter.Q.value = 2;
+  }
+
+  if (currentEffect === "deep") {
+    filter.type = "lowpass";
+    filter.frequency.value = 650;
+  }
+
+  if (currentEffect === "high") {
+    filter.type = "highpass";
+    filter.frequency.value = 1400;
+  }
+
+  if (currentEffect === "alien") {
+    filter.type = "highpass";
+    filter.frequency.value = 1800;
+  }
+
+  if (currentEffect === "radio") {
+    filter.type = "bandpass";
+    filter.frequency.value = 1600;
+    filter.Q.value = 1.5;
+  }
+
+  gain.gain.value =
+    Number(document.getElementById("volume").value);
+
+  status.textContent = "🟢 Micro actif : " + currentEffect;
+}
+
+document.querySelectorAll("[data-effect]").forEach(button => {
+  button.addEventListener("click", () => {
+    currentEffect = button.dataset.effect;
+
+    document.querySelectorAll("[data-effect]").forEach(b => {
+      b.classList.remove("active");
+    });
+
+    button.classList.add("active");
+    updateEffect();
+  });
+});
+
+document.getElementById("volume").addEventListener("input", () => {
+  if (gain) updateEffect();
+});
+
+startBtn.addEventListener("click", startMic);
+stopBtn.addEventListener("click", stopMic);
+
+function playSound(frequency) {
+  const audioContext = new AudioContext();
+
+  const oscillator = audioContext.createOscillator();
+  const volume = audioContext.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = frequency;
+
+  volume.gain.setValueAtTime(.2, audioContext.currentTime);
+
+  volume.gain.exponentialRampToValueAtTime(
+    .001,
+    audioContext.currentTime + .4
+  );
+
+  oscillator.connect(volume);
+  volume.connect(audioContext.destination);
+
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + .4);
+
+  oscillator.onended = () => audioContext.close();
+}
+</script>
+
+</body>
+      </html>
